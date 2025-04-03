@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Server Tester</title>
+    <script defer src="app.js"></script>
+</head>
+<body>
+    <h1>MCP Server Tester</h1>
+
+    <!-- Search for MCP Servers -->
+    <input type="text" id="searchQuery" placeholder="Search for MCP Servers">
+    <button onclick="searchServers()">Search</button>
+    <ul id="serverList"></ul>
+
+    <!-- Get Server Details -->
+    <input type="text" id="serverName" placeholder="Enter MCP Server Name">
+    <button onclick="getServerDetails()">Get Details</button>
+    <pre id="serverDetails"></pre>
+
+    <!-- Test MCP Server -->
+    <input type="text" id="testServerName" placeholder="MCP Server Name">
+    <textarea id="config" placeholder="Enter JSON Config"></textarea>
+    <button onclick="testMCP()">Test MCP</button>
+    <p id="testResult"></p>
+</body>
+</html>
