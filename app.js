@@ -1,4 +1,4 @@
-const BASE_URL = "https://your-deployed-backend-url.com"; // Replace with your backend URL
+const BASE_URL = "https://mcp-tester-vbk6.onrender.com"; // Replace with your backend URL
 
 // **Search for MCP Servers**
 async function searchServers() {
