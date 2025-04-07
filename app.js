@@ -1,49 +1,85 @@
-const BASE_URL = "https://mcp-tester-vbk6.onrender.com"; // Replace with your backend URL
+require('dotenv').config();
+const express = require('express');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const WebSocket = require('ws');
 
-// **Search for MCP Servers**
-async function searchServers() {
-    const query = document.getElementById("searchQuery").value;
-    const response = await fetch(`${BASE_URL}/list-mcp-servers?q=${query}`);
-    const data = await response.json();
-    
-    const listElement = document.getElementById("serverList");
-    listElement.innerHTML = "";
-    data.servers.forEach(server => {
-        const li = document.createElement("li");
-        li.textContent = `${server.displayName} (${server.qualifiedName})`;
-        listElement.appendChild(li);
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+app.use(cors());
+app.use(bodyParser.json());
+
+function connectToMCPViaWebSocket(qualifiedName, config, onMessage, onError, onClose) {
+    const base64Config = Buffer.from(JSON.stringify(config)).toString('base64');
+    const wsUrl = `wss://server.smithery.ai/${qualifiedName}/ws?config=${base64Config}`;
+    const ws = new WebSocket(wsUrl);
+
+    ws.on('open', () => {
+        console.log('✅ WebSocket connection opened');
+        
+        // Send the config as the message after connection opens
+        const message = JSON.stringify(config);
+        console.log('📤 Sending to MCP:', message);
+        ws.send(message);
+    });
+
+    ws.on('message', (data) => {
+        console.log('📨 Received from MCP:', data);
+        onMessage(data);
+        ws.close(); // Optional: close after response
+    });
+
+    ws.on('error', (err) => {
+        console.error('❌ WebSocket Error:', err);
+        onError(err);
+    });
+
+    ws.on('close', () => {
+        console.log('🔌 WebSocket closed');
+        if (onClose) onClose();
     });
 }
 
-// **Get Details of a Specific Server**
-async function getServerDetails() {
-    const serverName = document.getElementById("serverName").value;
-    const response = await fetch(`${BASE_URL}/mcp-server/${serverName}`);
-    const data = await response.json();
-    
-    document.getElementById("serverDetails").textContent = JSON.stringify(data, null, 2);
-}
-
-// **Test MCP Server Connection**
-async function testMCP() {
-    const qualifiedName = document.getElementById("testServerName").value;
-    const config = document.getElementById("config").value;
+app.post('/test-mcp', (req, res) => {
+    const { qualifiedName, config } = req.body;
 
     if (!qualifiedName || !config) {
-        document.getElementById("testResult").textContent = "Please enter server name and config.";
-        return;
+        return res.status(400).json({
+            success: false,
+            message: 'qualifiedName and config are required',
+        });
     }
 
     try {
-        const response = await fetch(`${BASE_URL}/test-mcp`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ qualifiedName, config: JSON.parse(config) }),
-        });
-
-        const data = await response.json();
-        document.getElementById("testResult").textContent = data.success ? `WebSocket URL: ${data.wsUrl}` : "Connection Failed";
+        connectToMCPViaWebSocket(
+            qualifiedName,
+            config,
+            (data) => {
+                // Success callback
+                res.status(200).json({
+                    success: true,
+                    result: data.toString(),
+                });
+            },
+            (error) => {
+                // Error callback
+                res.status(500).json({
+                    success: false,
+                    message: 'MCP WebSocket call failed',
+                    error: error.message,
+                });
+            }
+        );
     } catch (error) {
-        document.getElementById("testResult").textContent = "Error connecting to MCP server.";
+        res.status(500).json({
+            success: false,
+            message: 'MCP connection error',
+            error: error.message,
+        });
     }
-}
+});
+
+app.listen(PORT, () => {
+    console.log(`🚀 Server running at http://localhost:${PORT}`);
+});
