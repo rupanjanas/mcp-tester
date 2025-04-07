@@ -1,42 +1,41 @@
-const axios = require("axios");
+const API_BASE = 'http://localhost:5000/api';
 
-async function listMCPServers(query = "", page = 1, pageSize = 10) {
-    const response = await axios.get("https://registry.smithery.ai/servers", {
-        headers: {
-            Authorization: `Bearer ${process.env.SMITHERY_API_KEY}`
-        },
-        params: { q: query, page, pageSize }
+async function searchServers() {
+    const query = document.getElementById('searchQuery').value;
+    const res = await fetch(`${API_BASE}/servers?q=${encodeURIComponent(query)}`);
+    const data = await res.json();
+    const list = document.getElementById('serverList');
+    list.innerHTML = '';
+    data.servers?.forEach(server => {
+        const li = document.createElement('li');
+        li.textContent = server.name;
+        list.appendChild(li);
     });
-    return response.data;
 }
-async function getMCPServer(qualifiedName) {
-    const response = await axios.get(`https://registry.smithery.ai/servers/${qualifiedName}`, {
-        headers: {
-            Authorization: `Bearer ${process.env.SMITHERY_API_KEY}`
-        }
-    });
-    return response.data;
-}
-const WebSocket = require("ws");
 
-function connectToMCP(qualifiedName, config) {
-    const base64Config = Buffer.from(JSON.stringify(config)).toString("base64");
-    const wsUrl = `wss://server.smithery.ai/${qualifiedName}/ws?config=${base64Config}`;
-    
-    const ws = new WebSocket(wsUrl);
-    
-    ws.on("open", () => console.log("Connected to MCP Server"));
-    ws.on("message", (data) => console.log("Received:", data));
-    ws.on("error", (err) => console.error("WebSocket Error:", err));
-    ws.on("close", () => console.log("Connection closed"));
+async function getServerDetails() {
+    const name = document.getElementById('serverName').value;
+    const res = await fetch(`${API_BASE}/servers/${name}`);
+    const data = await res.json();
+    document.getElementById('serverDetails').textContent = JSON.stringify(data, null, 2);
 }
-async function testMCPServer(installationCode) {
+
+async function testMCP() {
+    const name = document.getElementById('testServerName').value;
+    const config = document.getElementById('config').value;
+
     try {
-        const response = await axios.post("https://smithery.ai/api/test-mcp", {
-            code: installationCode
+        const res = await fetch(`${API_BASE}/test-mcp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                qualifiedName: name,
+                config: JSON.parse(config)
+            })
         });
-        return response.data;
-    } catch (error) {
-        throw new Error("Failed to connect to MCP server");
+        const data = await res.json();
+        document.getElementById('testResult').textContent = data.success ? `✅ Result: ${data.result}` : `❌ Error: ${data.message}`;
+    } catch (err) {
+        document.getElementById('testResult').textContent = `❌ Invalid config or request failed`;
     }
-} 
+}
